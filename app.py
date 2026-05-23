@@ -22,8 +22,9 @@ uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
+    # stripping out Pandas3.0 StringDtypes problems
     for col in df.columns:
-        if isinstance(df[col].dtype, pd.StringDtype) or pd.api.types.is_string_dtype(df[col]):
+        if pd.api.types.is_string_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
             df[col] = df[col].astype(object)
 
     st.subheader("Dataset Preview")
@@ -39,18 +40,23 @@ if uploaded_file is not None:
         X = df.drop(columns=[target])
         y = df[target]
         
+        # double check for missing target values
         if y.isnull().any():
-            st.warning("Target column contains missing values. Dropping those rows for training.")
+            st.warning("Target column contains missing values. Dropping affected rows for training.")
             valid_idx = y.notnull()
             X = X[valid_idx]
             y = y[valid_idx]
 
-        # Robust numeric vs categorical column selection
-        numeric_cols = X.select_dtypes(include=[np.number]).columns
-        cat_cols = X.select_dtypes(exclude=[np.number]).columns
+        # re-verify and isolate column backends securely
+        for col in X.columns:
+            if pd.api.types.is_string_dtype(X[col]) or pd.api.types.is_object_dtype(X[col]):
+                X[col] = X[col].astype(object)
+
+        # numeric vs categorical column selection
+        numeric_cols = [col for col in X.columns if pd.api.types.is_numeric_dtype(X[col])]
+        cat_cols = [col for col in X.columns if pd.api.types.is_numeric_dtype(X[col])]
 
         numeric_transformer = SimpleImputer(strategy="mean")
-
         categorical_transformer = Pipeline(steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output="False"))
@@ -65,8 +71,6 @@ if uploaded_file is not None:
         )
 
         #X = X.select_dtypes(include=[np.number])
-
-
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         models = {
