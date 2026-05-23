@@ -40,7 +40,7 @@ if uploaded_file is not None:
 
     st.sidebar.subheader("Random Forest")
     rf_n_estimators = st.sidebar.slider("RF Estimators (No. of Trees)", min_value=10, max_value=300, value=100, step=10)
-    rf_max_depth = st.sidebar.slider("RF Max Depth", min_value=1, max_value=30, value=15, help="None maps to deep branches if unchecked")
+    rf_max_depth = st.sidebar.slider("RF Max Depth", min_value=1, max_value=30, value=15, help="No maps to deep branches if unchecked")
 
     st.sidebar.markdown("---")
 
@@ -69,12 +69,12 @@ if uploaded_file is not None:
 
         # numeric vs categorical column selection
         numeric_cols = [col for col in X.columns if pd.api.types.is_numeric_dtype(X[col])]
-        cat_cols = [col for col in X.columns if pd.api.types.is_numeric_dtype(X[col])]
+        cat_cols = [col for col in X.columns if not pd.api.types.is_numeric_dtype(X[col])]
 
         numeric_transformer = SimpleImputer(strategy="mean")
         categorical_transformer = Pipeline(steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output="False"))
+            ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
         ])
 
         preprocessor = ColumnTransformer(
@@ -128,7 +128,7 @@ if uploaded_file is not None:
                 end_time = time.time()
                 train_time = end_time - start_time
 
-                pred = pipeline.predict(y_test, pred)
+                pred = pipeline.predict(X_test)
                 test_predictions[name] = pred
 
                 rmse = np.sqrt(mean_squared_error(y_test, pred))
@@ -245,6 +245,9 @@ if uploaded_file is not None:
                             train_sizes=train_sizes, cv=3, scoring="r2", n_jobns=-1
                         )
 
+                        mean_train = train_scores.mean(axis=1)
+                        mean_val = test_scores.mean(axis=1)
+
                         curve_df = pd.DataFrame({
                             "Training Smaples": sizes,
                             "Train Performance": train_scores.mean(axis=1),
@@ -252,6 +255,20 @@ if uploaded_file is not None:
                         }).set_index("Training Samples")
 
                         st.line_chart(curve_df)
+
+                        final_train_score = mean_train[-1]
+                        final_val_score = mean_val[-1]
+                        score_gap = final_train_score-final_val_score
+
+                        if final_train_score < 0.60 and final_val_score < 0.60:
+                            st.error(f"**Underfitting Detected**\n\nBoth scores are low (Train: {final_train_score:.2f}, Val: {final_val_score:.2f}). The model lacks the capacity to capture the underlying patterns.")
+                        elif score_gap > 0.15:
+                            st.warning(f"**Overfitting Detected**\n\nHigh gap ({score_gap:.2f}) between Train ({final_train_score:.2f}) and Validation ({final_val_score:.2f}). The model is memorizing training details.")
+                        elif final_val_score >= 0.80:
+                            st.success(f"**Excellent Fit**\n\nHigh validation score ({final_val_score:.2f}) with low variance gap ({score_gap:.2f}).")
+                        else:
+                            st.info(f"**Stable Fit (Moderate Performance)**\n\nThe gap is healthy ({score_gap:.2f}), but performance is moderate (Val: {final_val_score:.2f}).")
+
 
                     except Exception as e:
                         st.info(f"Unable to compute data scaling metrics for {name}")
