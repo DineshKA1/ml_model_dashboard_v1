@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import time 
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, learning_curve
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
@@ -116,25 +116,53 @@ if uploaded_file is not None:
         }
 
         results = []
+        trained_models = {}
+        test_predictions = {}
 
-        with st.spinner("Training models..."):
-            for name, model in models.items():
-                model.fit(X_train, y_train)
-                pred = model.predict(X_test)
+        with st.spinner("Executing pipelines & calculating cross-validation"):
+
+            for name, pipeline in models.items():
+                
+                start_time = time.time()
+                pipeline.fit(X_train, y_train)
+                end_time = time.time()
+                train_time = end_time - start_time
+
+                pred = pipeline.predict(y_test, pred)
+                test_predictions[name] = pred
 
                 rmse = np.sqrt(mean_squared_error(y_test, pred))
                 r2 = r2_score(y_test, pred)
 
+                cv_scores = cross_val_score(pipeline, X_train, y_train, cv=5, scoring="r2", n_jobs=-1)
+                cv_mean = cv_scores.mean()
+
                 results.append({
                     "Model": name,
                     "RMSE": rmse,
-                    "R2 score": r2
+                    "R2 score": r2,
+                    "CV R2 Mean": cv_mean,
+                    "Training time (s)": round(train_time, 4)
                 })
+
+                trained_models[name] = pipeline
 
         results_df = pd.DataFrame(results)
 
-        st.subheader("Model Comparison")
-        st.dataframe(results_df)
+        st.success("Training complete")
+        best_model = results_df.sort_values("R2 score", ascending=False).iloc[0]
+
+        st.subheader("Performance Summary")
+        m_col1, m_col2, m_col3 = st.columns(3)
+        with m_col1:
+            st.metric(label="Best Model (Highest R2)", value=best_model["Model"])
+        with m_col2:
+            st.metric(label="Top R2 Score", value=f"{best_model['R2 score']:.5f}")
+        with m_col3:
+            st.metric(label="Top CV R2 Mean", value=f"{best_model['CV R2 Mean']:.5f}")
+
+        #st.subheader("Model Comparison")
+        #st.dataframe(results_df)
 
         st.bar_chart(results_df.set_index("Model")["RMSE"])
         st.bar_chart(results_df.set_index("Model")["R2 score"])
