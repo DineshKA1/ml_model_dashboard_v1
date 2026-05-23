@@ -161,16 +161,47 @@ if uploaded_file is not None:
         with m_col3:
             st.metric(label="Top CV R2 Mean", value=f"{best_model['CV R2 Mean']:.5f}")
 
-        #st.subheader("Model Comparison")
-        #st.dataframe(results_df)
+        st.subheader("Model Metrics Comparison Table")
+        st.dataframe(results_df.style.highlight_max(subset=['R2 score', 'CV R2 Mean'], color="#26d89c"))
 
-        st.bar_chart(results_df.set_index("Model")["RMSE"])
-        st.bar_chart(results_df.set_index("Model")["R2 score"])
+        st.subheader("Analytics")
+        g_col1, g_col2, g_col3 = st.columns(3)
+        with g_col1:
+            st.write("##### R2 score")
+            st.bar_chart(results_df.set_index("Model")['R2 score'])
+        with g_col2:
+            st.write("##### 5-fold CV R2 Mean")
+            st.bar_chart(results_df.set_index("Model")['CV R2 Mean'])
+        with g_col1:
+            st.write("##### Training Time")
+            st.bar_chart(results_df.set_index("Model")['Training time (s)'])
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write("### RMSE (Lower is better)")
-            st.bar_chart(results_df.set_index("Model")["RMSE"])
-        with col2:
-            st.write("### R2 Score (Higher is better)")
-            st.bar_chart(results_df.set_index("Model")["R2 score"])
+
+
+        #Feature Importance (FI)
+        st.markdown("---")
+        st.subheader("Attributes driving predictions")
+
+        try:
+            fitted_preprocessor = trained_models["Random Forest"].named_steps["preprocess"]
+            encoded_cat_features = fitted_preprocessor.named_transformers_["cat"].named_steps["encoder"].get_feature_names_out(cat_cols)
+            all_feature_names = list(numeric_cols) + list(encoded_cat_features)
+
+            fi_col1, fi_col2 = st.columns(2)
+
+            with fi_col1:
+                st.write("##### Random Forest Priorities")
+                rf_fi = trained_models["Random Forest"].named_steps["model"].feature_importances_
+                rf_fi_df = pd.DataFrame({"Feature": all_feature_names, "Importance": rf_fi}).sort_values("Importance", ascending=False).head(12)
+                st.bar_chart(rf_fi_df.set_index("Feature")["Importance"])
+
+            with fi_col2:
+                st.write("##### XGBoost Engine Priorities")
+                xgb_fi = trained_models["XGBoost"].named_steps["model"].feature_importances_
+                xgb_fi_df = pd.DataFrame({"Feature": all_feature_names, "Importance": xgb_fi}).sort_values("Importance", ascending=False).head(12)
+                st.bar_chart(xgb_fi_df.set_index("Feature")["Importance"])
+
+        except Exception as e:
+            st.info("Heavily nested feature columns or structural mismathces")
+
+            
