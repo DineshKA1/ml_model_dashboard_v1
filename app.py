@@ -204,4 +204,54 @@ if uploaded_file is not None:
         except Exception as e:
             st.info("Heavily nested feature columns or structural mismathces")
 
-            
+        #error analysis
+        st.markdown("---")
+        st.subheader("Error & Residual Analysis")
+        
+        res_col1, res_col2, res_col3 = st.columns(3)
+
+        #building comparative df pairing pred & ground truths
+
+        for idx, (name, col_target) in enumerate(zip(models.keys(), [res_col1, res_col2, res_col3])):
+
+            with col_target:
+
+                st.write(f"##### {name} Residual Profile")
+                residual_df = pd.DataFrame({
+                    "Actual Val": y_test.values,
+                    "Predicted Val": test_predictions[name]
+                })
+
+                st.scatter_chart(data=residual_df, x="Actual Val", y="Predicted Val")
+
+
+        st.subheader("Continuous Evaluation: Learning Curves")
+
+        with st.spinner("Generatiing learning curve profiles..."):
+
+            lc_col1, lc_col2, lc_col3 = st.columns(3)
+
+            train_sizes = np.linspace(0.1, 1.0, 5)
+
+            for name, col_target in zip(models.keys(), [lc_col1, lc_col2, lc_col3]):
+
+                with col_target:
+
+                    st.write(f"##### {name} Learning Dynamics")
+                    try:
+
+                        sizes, train_scores, test_scores, = learning_curve(
+                            trained_models[name], X_train, y_train,
+                            train_sizes=train_sizes, cv=3, scoring="r2", n_jobns=-1
+                        )
+
+                        curve_df = pd.DataFrame({
+                            "Training Smaples": sizes,
+                            "Train Performance": train_scores.mean(axis=1),
+                            "Validation Performance": test_scores.mean(axis=1)
+                        }).set_index("Training Samples")
+
+                        st.line_chart(curve_df)
+
+                    except Exception as e:
+                        st.info(f"Unable to compute data scaling metrics for {name}")
