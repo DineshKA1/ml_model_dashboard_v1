@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import time 
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
@@ -31,11 +32,22 @@ if uploaded_file is not None:
     st.dataframe(df.head())
 
     st.subheader("Basic Info")
-    st.write("Shape:", df.shape)
+    st.write(f"**Shape:** {df.shape[0]} rows, {df.shape[1]} columns")
 
     target = st.selectbox("Select Target Column", df.columns)
 
-    if st.button("Train Models"):
+    st.sidebar.header("Model Hyperparameters")
+
+    st.sidebar.subheader("Random Forest")
+    rf_n_estimators = st.sidebar.slider("RF Estimators (No. of Trees)", min_value=10, max_value=300, value=100, step=10)
+    rf_max_depth = st.sidebar.slider("RF Max Depth", min_value=1, max_value=30, value=15, help="None maps to deep branches if unchecked")
+
+    st.sidebar.markdown("---")
+
+    st.sidebar.subheader("XGBoost Tuning")
+    xgb_n_estimators = st.sidebar.slider("XGB Max Depth", min_value=1, max_value=15, value=6, step=1)
+
+    if st.button("Train & Evaulate Models"):
 
         X = df.drop(columns=[target])
         y = df[target]
@@ -67,7 +79,6 @@ if uploaded_file is not None:
                 ("num", numeric_transformer, numeric_cols),
                 ("cat", categorical_transformer, cat_cols)
             ]
-            
         )
 
         #X = X.select_dtypes(include=[np.number])
