@@ -45,8 +45,8 @@ if uploaded_file is not None:
     st.sidebar.markdown("---")
 
     st.sidebar.subheader("XGBoost Tuning")
-    xgb_n_estimators = st.sidebar.slider("XGB Estimators", min_value=1, max_value=15, value=6, step=1)
-    xgb_lr = st.sidebar.slider("XGB Learning Rate", min_value=0.01, max_value=0.05, value=0.1, step=0.01)
+    xgb_n_estimators = st.sidebar.slider("XGB Estimators", min_value=10, max_value=300, value=100, step=10)
+    xgb_lr = st.sidebar.slider("XGB Learning Rate", min_value=0.01, max_value=0.5, value=0.1, step=0.01)
     xgb_max_depth = st.sidebar.slider("XGB Max Depth", min_value=1, max_value=15, value=6, step=1)
 
 
@@ -240,18 +240,18 @@ if uploaded_file is not None:
                     st.write(f"##### {name} Learning Dynamics")
                     try:
 
-                        sizes, train_scores, test_scores, = learning_curve(
+                        sizes, train_scores, test_scores = learning_curve(
                             trained_models[name], X_train, y_train,
-                            train_sizes=train_sizes, cv=3, scoring="r2", n_jobns=-1
+                            train_sizes=train_sizes, cv=3, scoring="r2", n_jobs=-1
                         )
 
                         mean_train = train_scores.mean(axis=1)
                         mean_val = test_scores.mean(axis=1)
 
                         curve_df = pd.DataFrame({
-                            "Training Smaples": sizes,
-                            "Train Performance": train_scores.mean(axis=1),
-                            "Validation Performance": test_scores.mean(axis=1)
+                            "Training Samples": sizes,
+                            "Train Performance": mean_train,
+                            "Validation Performance": mean_val
                         }).set_index("Training Samples")
 
                         st.line_chart(curve_df)
