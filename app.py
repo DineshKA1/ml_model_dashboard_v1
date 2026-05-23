@@ -45,7 +45,10 @@ if uploaded_file is not None:
     st.sidebar.markdown("---")
 
     st.sidebar.subheader("XGBoost Tuning")
-    xgb_n_estimators = st.sidebar.slider("XGB Max Depth", min_value=1, max_value=15, value=6, step=1)
+    xgb_n_estimators = st.sidebar.slider("XGB Estimators", min_value=1, max_value=15, value=6, step=1)
+    xgb_lr = st.sidebar.slider("XGB Learning Rate", min_value=0.01, max_value=0.05, value=0.1, step=0.01)
+    xgb_max_depth = st.sidebar.slider("XGB Max Depth", min_value=1, max_value=15, value=6, step=1)
+
 
     if st.button("Train & Evaulate Models"):
 
@@ -92,12 +95,23 @@ if uploaded_file is not None:
     
             "Random Forest": Pipeline([
                 ("preprocess", preprocessor),
-                ("model", RandomForestRegressor(n_estimators=100, random_state=42))
+                ("model", RandomForestRegressor(
+                    n_estimators=rf_n_estimators,
+                    max_depth=rf_max_depth,
+                    random_state=42,
+                    n_jobs=-1
+                    ))
             ]),
     
             "XGBoost": Pipeline([
                 ("preprocess", preprocessor),
-                ("model", XGBRegressor(n_estimators=100, learning_rate=0.1))
+                ("model", XGBRegressor(
+                    n_estimators=xgb_n_estimators, 
+                    learning_rate=xgb_lr,
+                    max_depth=xgb_max_depth,
+                    random_state=42,
+                    n_jobs=-1
+                    ))
             ])
         }
 
